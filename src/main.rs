@@ -1,5 +1,6 @@
 use clap;
 use ureq;
+use std::cell::RefCell;
 
 fn main() {
     let matches = clap::App::new("rurl")
@@ -48,17 +49,23 @@ fn main() {
 }
 
 fn get(url: &str, headers: &str) -> (String) {
-    let req = ureq::get(url);
+    let req = RefCell::new(ureq::get(url));
 
     if headers != "" {
-        let header_split: Vec<&str> = headers.split(":").collect();
-        req.set(header_split[0], header_split[1]);
+        let headers: Vec<&str> = headers.split(",").collect();
+        for header in headers {
+            let header: Vec<&str> = header.split(":").collect();
+            req.borrow_mut().clone().set(header[0], header[1]);
+        }
     }
 
-    let res = req.call();
-    let body = res.unwrap();
+    let res = req.borrow_mut().clone().call();
+    let body = res.unwrap().into_string().unwrap();
+
+    body
 }
 
 fn post(url: &str, headers: &str, data: &str) -> String {
-    ureq::post(url).set(headers).send_string(data).into_string().unwrap()
+    // ureq::post(url).set(headers).send_string(data).into_string().unwrap()
+    "hi".to_string()
 }
