@@ -41,9 +41,9 @@ fn main() {
     let data = matches.value_of("data").unwrap_or("");
     let header = matches.value_of("header").unwrap_or("");
 
-
-
-
+    if request == "GET" {
+        println!("{}", get(url, header))
+    }
 
     println!("{:?}", matches)
 }
@@ -66,6 +66,17 @@ fn get(url: &str, headers: &str) -> (String) {
 }
 
 fn post(url: &str, headers: &str, data: &str) -> String {
-    // ureq::post(url).set(headers).send_string(data).into_string().unwrap()
+    let req = RefCell::new(ureq::post(url));
+
+    if headers != "" {
+        let headers: Vec<&str> = headers.split(",").collect();
+        for header in headers {
+            let header: Vec<&str> = header.split(":").collect();
+            req.borrow_mut().clone().set(header[0], header[1]);
+        }
+    }
+
+    req.borrow_mut().clone();
+    
     "hi".to_string()
 }
