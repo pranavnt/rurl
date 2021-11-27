@@ -1,6 +1,7 @@
 use clap;
-use ureq;
+use serde_json::{Result, Value};
 use std::cell::RefCell;
+use ureq;
 
 fn main() {
     let matches = clap::App::new("rurl")
@@ -34,6 +35,14 @@ fn main() {
                 .takes_value(true)
                 .help("Header to send"),
         )
+        .arg(
+            clap::Arg::with_name("form")
+                .short("F")
+                .long("form")
+                .takes_value(true)
+                .help("Form data to send")
+                .multiple(true),
+        )
         .get_matches();
 
     let url = matches.value_of("url").unwrap();
@@ -41,11 +50,36 @@ fn main() {
     let data = matches.value_of("data").unwrap_or("");
     let header = matches.value_of("header").unwrap_or("");
 
-    if request == "GET" {
-        println!("{}", get(url, header))
+    let form: clap::Values;
+    let is_form = matches.is_present("form");
+
+    if is_form {
+        form = matches.values_of("form").unwrap();
+    } else {
+        form = clap::Values::default();
     }
 
-    println!("{:?}", matches)
+    if request == "GET" {
+        println!("{}", get(url, header))
+    } else if is_form {
+        // let res = post(url, form, header);
+    } else if request == "POST" {
+        let res = post(url, header, data);
+
+        if res.is_ok() {
+            let res = res.unwrap();
+            let json: Value = serde_json::from_str(&res).unwrap();
+            println!("{}", json);
+        } else {
+            println!("{}", res.unwrap_err());
+        }
+    } else if request == "PUT" {
+        // println!("{}", put(url, data, header))
+    } else if request == "DELETE" {
+        // println!("{}", delete(url, header))
+    } else {
+        println!("ERROR");
+    }
 }
 
 fn get(url: &str, headers: &str) -> (String) {
@@ -65,7 +99,7 @@ fn get(url: &str, headers: &str) -> (String) {
     body
 }
 
-fn post(url: &str, headers: &str, data: &str) -> String {
+fn post(url: &str, headers: &str, data: &str) -> Result<String> {
     let req = RefCell::new(ureq::post(url));
 
     if headers != "" {
@@ -76,7 +110,18 @@ fn post(url: &str, headers: &str, data: &str) -> String {
         }
     }
 
-    req.borrow_mut().clone();
-    
-    "hi".to_string()
+    let json:serde_json::Value = serde_json::from_str(data)?;
+
+    match req.borrow_mut().clone().send_json(json) {
+        Err(e) => {
+            return Err(e).unwrap();
+        }
+        Ok(res) => {
+            return Ok(res.into_string().unwrap());
+        }
+    };
+}
+
+enum Errors {
+    JsonError,
 }
