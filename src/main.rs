@@ -103,14 +103,18 @@ fn post(url: &str, headers: &str, data: &str) -> Result<String> {
     let req = RefCell::new(ureq::post(url));
 
     if headers != "" {
-        let headers: Vec<&str> = headers.split(",").collect();
-        for header in headers {
-            let header: Vec<&str> = header.split(":").collect();
-            req.borrow_mut().clone().set(header[0], header[1]);
+        let headers: Value = serde_json::from_str(headers).unwrap();
+        let headers = headers.as_object().unwrap();
+
+        for (key, value) in headers {
+            req.borrow_mut().clone().set(key, &value.to_string());
         }
     }
 
-    let json:serde_json::Value = serde_json::from_str(data)?;
+    let json:Value = serde_json::from_str(data)?;
+
+    println!("hi");
+    println!("{}", json.to_string());
 
     match req.borrow_mut().clone().send_json(json) {
         Err(e) => {
@@ -120,8 +124,4 @@ fn post(url: &str, headers: &str, data: &str) -> Result<String> {
             return Ok(res.into_string().unwrap());
         }
     };
-}
-
-enum Errors {
-    JsonError,
 }
