@@ -68,8 +68,8 @@ fn main() {
 
         if res.is_ok() {
             let res = res.unwrap();
-            let json: Value = serde_json::from_str(&res).unwrap();
-            println!("{}", json);
+
+            println!("{}", res.to_string());
         } else {
             println!("{}", res.unwrap_err());
         }
