@@ -100,7 +100,7 @@ fn get(url: &str, headers: &str) -> Response {
 
     let resp_header_names = res.headers_names();
 
-    let resp_headers: Vec<(String, String)> = Vec::<(String, String)>::new();
+    let mut resp_headers: Vec<(String, String)> = Vec::<(String, String)>::new();
 
     for header in resp_header_names {
         let header_value = res.header(&header).unwrap();
