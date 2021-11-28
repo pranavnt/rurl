@@ -2,6 +2,8 @@ use clap;
 use serde_json::{Result, Value};
 use std::cell::RefCell;
 use ureq;
+use regex::Regex;
+use cli_table::{format::Justify, print_stdout, Cell, Style, Table};
 
 fn main() {
     let matches = clap::App::new("rurl")
@@ -60,7 +62,7 @@ fn main() {
     }
 
     if request == "GET" {
-        println!("{}", get(url, header))
+        get(url, header).print();
     } else if is_form {
         // let res = post(url, form, header);
     } else if request == "POST" {
@@ -73,6 +75,7 @@ fn main() {
         } else {
             println!("{}", res.unwrap_err());
         }
+        
     } else if request == "PUT" {
         // println!("{}", put(url, data, header))
     } else if request == "DELETE" {
@@ -82,7 +85,7 @@ fn main() {
     }
 }
 
-fn get(url: &str, headers: &str) -> (String) {
+fn get(url: &str, headers: &str) -> Response {
     let req = RefCell::new(ureq::get(url));
 
     if headers != "" {
@@ -93,10 +96,47 @@ fn get(url: &str, headers: &str) -> (String) {
         }
     }
 
-    let res = req.borrow_mut().clone().call();
-    let body = res.unwrap().into_string().unwrap();
+    let res = req.borrow_mut().clone().call().unwrap();
 
-    body
+    let resp_header_names = res.headers_names();
+
+    let resp_headers: Vec<(String, String)> = Vec::<(String, String)>::new();
+
+    for header in resp_header_names {
+        let header_value = res.header(&header).unwrap();
+        resp_headers.push((header.to_string(), header_value.to_string()));
+    }
+
+    let response: Response = Response{
+        status_code: res.status().to_string(),
+        status_text: res.status_text().to_string(),
+        body: res.into_string().unwrap(),
+        headers: resp_headers,
+    };
+
+    // body
+    response
+}
+
+struct Response {
+    status_code: String,
+    status_text: String,
+    headers: Vec<(String, String)>,
+    body: String,
+}
+
+impl Response {
+    fn print(&self) {
+        // use the cli table library to display the status code and status text
+        let table = vec![
+            vec!["Status Code".cell(), self.status_code.clone().cell()],
+            vec!["Status Text".cell(), self.status_text.clone().cell()],
+        ]
+        .table()
+        .bold(true);
+        
+        print_stdout(table).unwrap();
+    }
 }
 
 fn post(url: &str, headers: &str, data: &str) -> Result<String> {
@@ -113,9 +153,6 @@ fn post(url: &str, headers: &str, data: &str) -> Result<String> {
 
     let json:Value = serde_json::from_str(data)?;
 
-    println!("hi");
-    println!("{}", json.to_string());
-
     match req.borrow_mut().clone().send_json(json) {
         Err(e) => {
             return Err(e).unwrap();
@@ -124,4 +161,9 @@ fn post(url: &str, headers: &str, data: &str) -> Result<String> {
             return Ok(res.into_string().unwrap());
         }
     };
+}
+
+struct Request {
+    url: String,
+    method: String,
 }
