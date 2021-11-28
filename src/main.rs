@@ -1,10 +1,10 @@
+use ansi_term::Colour::{Green, Red, Yellow};
 use clap;
 use cli_table::{format::Justify, print_stdout, Cell, Style, Table};
 use regex::Regex;
 use serde_json::{Result, Value};
 use std::cell::RefCell;
 use ureq;
-use ansi_term::Colour::{Green, Red, Yellow};
 
 fn main() {
     let matches = clap::App::new("rurl")
@@ -67,15 +67,7 @@ fn main() {
     } else if is_form {
         // let res = post(url, form, header);
     } else if request == "POST" {
-        let res = post(url, header, data);
-
-        if res.is_ok() {
-            let res = res.unwrap();
-
-            println!("{}", res.to_string());
-        } else {
-            println!("{}", res.unwrap_err());
-        }
+        post(url, header, data).print();
     } else if request == "PUT" {
         // println!("{}", put(url, data, header))
     } else if request == "DELETE" {
@@ -161,8 +153,18 @@ impl Response {
         };
 
         // use the cli table library to display the status code and status text
-        println!("{}", color.bold().paint(format!("Status Code: {}", self.status_code.clone())));
-        println!("{}", color.bold().paint(format!("Status Text: {}", self.status_text.clone())));
+        println!(
+            "{}",
+            color
+                .bold()
+                .paint(format!("Status Code: {}", self.status_code.clone()))
+        );
+        println!(
+            "{}",
+            color
+                .bold()
+                .paint(format!("Status Text: {}", self.status_text.clone()))
+        );
 
         let mut table_data = vec![];
 
@@ -180,7 +182,7 @@ impl Response {
     }
 }
 
-fn post(url: &str, headers: &str, data: &str) -> Result<String> {
+fn post(url: &str, headers: &str, data: &str) -> Response {
     let req = RefCell::new(ureq::post(url));
 
     if headers != "" {
@@ -192,14 +194,24 @@ fn post(url: &str, headers: &str, data: &str) -> Result<String> {
         }
     }
 
-    let json: Value = serde_json::from_str(data)?;
+    let json: Value = serde_json::from_str(data).unwrap();
 
-    match req.borrow_mut().clone().send_json(json) {
-        Err(e) => {
-            return Err(e).unwrap();
-        }
-        Ok(res) => {
-            return Ok(res.into_string().unwrap());
-        }
+    let res = req.borrow_mut().clone().send_json(json).unwrap();
+
+    let resp_header_names = res.headers_names();
+    let mut resp_headers: Vec<(String, String)> = Vec::<(String, String)>::new();
+
+    for header in resp_header_names {
+        let header_value = res.header(&header).unwrap();
+        resp_headers.push((header.to_string(), header_value.to_string()));
+    }
+
+    let response: Response = Response {
+        status_code: res.status().to_string(),
+        status_text: res.status_text().to_string(),
+        headers: resp_headers,
+        body: res.into_string().unwrap(),
     };
+
+    response
 }
